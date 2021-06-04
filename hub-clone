@@ -1,0 +1,219 @@
+#!/bin/sh
+config="$HOME/.config/clone/config"
+
+update_or_add () {
+  key="$1"
+  value="$2"
+  if ! [ -f "$config" ]; then
+    folder="${config%/*}"
+    mkdir -p "$folder"
+  else
+    # strip any existing value
+    sed -i "" "/^${key}=/d" "$config"
+  fi
+  echo "$key=$value" >> "$config"
+}
+
+get_username () {
+  active_user="$1"
+  if [ -z "$active_user" ]; then
+    read -p "GitHub Username: " active_user
+  fi
+  read -s -p "GitHub Personal Access Token for $active_user: " token
+  echo
+  key="GITHUB_TOKEN_$active_user"
+  update_or_add "$key" "$token"
+  echo "$active_user"
+}
+
+set_default () {
+  usernames=()
+  i=0
+  options="Users:"
+  message="Select default username (#"
+  while read -r line; do
+    line="${line%%=*}"
+    name="${line##GITHUB_TOKEN_}"
+    if ! [ "$name" == "$line" ]; then
+      let i+=1
+      usernames+=($name)
+      if [ "$GITHUB_DEFAULT_USER" == "$name" ]; then
+        name="$name * (current default)"
+        message="$message or blank for $i"
+        inuse=$i
+      fi
+      options="${options}\n - [$i] $name"
+    fi # if we find unexpected lines, just skip 'em
+  done < "$config"
+
+  if [ "${#usernames[@]}" -eq 1 ]; then
+    new_default_username=${usernames[0]}
+  else
+    echo "$options"
+    read -p "$message) " num
+    [ -z "$num" ] && num=$inuse
+    if [ -z "$num" ]; then
+      echo "Not setting a default - specify --username when cloning"
+      new_default_username=""
+    else
+      let num-=1
+      new_default_username=${usernames[num]}
+    fi
+  fi
+  update_or_add 'GITHUB_DEFAULT_USER' "$new_default_username"
+}
+
+set_personal () {
+  if [ -f "$HOME/.gitconfig.personal" ]; then
+    read -p "Update global git user? (y/N)" global_git
+  else
+    global_git="y"
+  fi
+
+  if [[ $global_git =~ ^[yY] ]] ; then
+    echo "Setting up global git information"
+    read -p "Global git user name: " guser
+    read -p "Global git user email: " gemail
+    cat<<END > $HOME/dotfiles/.gitconfig.personal
+[user]
+  name = ${guser}
+  email = ${gemail}
+END
+  fi
+}
+
+me="$(basename $0)"
+usage="$me makes having multiple GitHub accounts more managable via
+separate Pesrsonal Access Tokens, HTTPS repositories, hierarchical .gitconfigs,
+and your OS's keychain.
+
+-u[sername]   The github username to use
+-g[itconfig]  Modify ~/.gitconfig.personal
+-d[efault]    Update default user
+-b[branch]    Checks out a specific branch of the project before continuing
+-r[ecurse]    Recursively checkout (for projects with submodules)
+
+Config is stored in ${config}, and $me will help manage your ~/.gitconfig.personal file as well.*
+
+It is recommended that you structure your projects like
+├── username1           # This folder name doesn't matter - I prefer using client names
+│   ├── .gitconfig      # user.name and user.email specific to username1
+│   ├── projectA
+│   └── projectB
+└── username2           # This folder name doesn't matter - I prefer using client names
+    ├── .gitconfig       # user.name and user.email specific to username1
+    ├── projectC
+    └── projectD
+
+** Setup **
+Anytime you call $me with a new username it will:
+  - Prompt for a GitHub Personal Access Token for the username. See https://github.com/settings/tokens
+  - If you have more than one username saved, prompt for a 'default' username
+  - Create/update its config file
+  - Create/update ~/.gitconfig.personal
+
+** Normal Use **
+Once setup, you can call $me with either:
+  - $me https://github.com/user_or_org/project_name
+  - $me user_or_org/project_name
+
+$me will:
+- Clone project (optionally clones specific branch and/or recursively)
+- Updates project's .git/config to have 'include.path=../../.gitconfig'."
+
+if [ -f "$config" ]; then
+  source "$config"
+else
+  ran_set="true"
+  username=$(get_username "$username")
+  set_default
+  set_personal
+fi
+
+while getopts ':rdgu:b:h' option; do
+  case "$option" in
+    h) echo "$usage"
+      exit
+      ;;
+    d) [ -z "$ran_set" ] && set_default
+      exit
+      ;;
+    g) [ -z "$ran_set" ] && set_personal
+      exit
+      ;;
+    u) username="$OPTARG"
+      ;;
+    b) branch="$OPTARG"
+      ;;
+    r) recurse="deep"
+      ;;
+    *) echo "getoutahere with that $OPTARG"
+      ;;
+  esac
+done
+shift $((OPTIND -1))
+
+repo="$1"
+# support hub-style shortnames user-or-org/project
+if [[ "$repo" =~ ^[^/]*/[^/]*$ ]]; then
+  repo="https://github.com/$repo"
+fi
+
+if [ -z "$repo" ]; then
+  echo "[31mNo repo URL provided[0m"
+  echo "$usage"
+  exit
+elif [ -z "$username" ]; then
+  if [ -z "$GITHUB_DEFAULT_USER" ]; then
+    username=$(get_username)
+    set_default
+    set_personal
+  else
+    username="$GITHUB_DEFAULT_USER"
+  fi
+fi
+token_key="GITHUB_TOKEN_$username"
+token="${!token_key}"
+
+if [ -z "$token" ]; then
+  get_username "$username" > /dev/null
+  echo
+  set_default
+  set_personal
+fi
+
+root=$(pwd)
+# https://www.tldp.org/LDP/abs/html/string-manipulation.html
+name=${repo##*/} # Deletes longest instance of * (anything)/ (the slash) from front
+name=${name%.git} # Deletes shortest instance of ".git" from back
+auth_repo=${repo/github.com/$token@github.com}
+include="[include]
+  path = ${root}/.gitconfig"
+command="git clone"
+
+message="You're checking out $repo as $username"
+if [ -n "$branch" ]; then
+  message="$message using $branch branch"
+  command="$command -b $branch"
+fi
+command="$command $auth_repo"
+if [ -n "$recurse" ]; then
+  message="$message and with its submodules"
+  command="$command --recurse-submodules"
+fi
+
+echo "$message"
+$command
+if [ $? -eq 0 ]; then
+  cd "$name" || exit
+
+  echo "$include" >> .git/config
+
+  if [ -n "$recurse" ]; then
+    git submodule update --init --recursive
+    for D in $(find ./.git/modules -type d -maxdepth 1 ! -path ./.git/modules)
+    do
+      echo "$include" >> "$D/config"
+    done
+  fi
+fi
