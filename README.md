@@ -1,20 +1,20 @@
-# hub-clone
+# git-clone
 
 Makes having multiple Git accounts more manageable via separate Personal Access Tokens, HTTPS
 repositories, hierarchical .gitconfigs, and your OS's keychain.
 
 ## Installation
 
-`hub-clone` is a bash script, so putting it anywhere in your $PATH is all you really need to do! I
+`git-clone` is a bash script, so putting it anywhere in your $PATH is all you really need to do! I
 prefer a shorter name, so I also add
 
 ```
-alias clone=hub-clone
+alias clone=git-clone
 ```
 
 to my .profile (or `.zshrc` or `.bashrc` or...)
 
-> Note: I am working on getting `hub-clone` added to [Homebrew](https://brew.sh/), but I think it
+> Note: I am working on getting `git-clone` added to [Homebrew](https://brew.sh/), but I think it
 > needs just a bit more refinement
 
 ## Setup
@@ -53,7 +53,7 @@ While cloning new repositories, `git-clone` will add an **include** section to t
 projects.
 
 ## Normal Use
-Once setup, you can call `hub-clone` with either:
+Once setup, you can call `git-clone` with either:
 
 ```
   $) cd ~/Projects/Personal
@@ -74,7 +74,7 @@ Once setup, you can call `hub-clone` with either:
        path=/Users/flare576/Projects/Client1/.gitconfig
 ```
 
-`hub-clone` will:
+`git-clone` will:
 - Use the `-u[sername]` you provide or, if absent, the GIT_DEFAULT_USER value from the config
 - Clone project (optionally clones specific branch and/or recursively)
 - Updates project's .git/config to have 'include.path=../../.gitconfig'." (see folder structure
@@ -91,7 +91,7 @@ TODO list
 -b[branch]    Checks out a specific branch of the project before continuing
 -r[ecurse]    Recursively checkout (for projects with submodules)
 
-Config is stored in ${config}, and `hub-clone` will help manage your ~/.gitconfig.personal file as well.*
+Config is stored in ${config}, and `git-clone` will help manage your ~/.gitconfig.personal file as well.*
 
 ## TODO:
 
