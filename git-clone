@@ -1,5 +1,5 @@
 #!/bin/sh
-config="$HOME/.config/clone/config"
+config="$HOME/.config/git-clone/config"
 
 # usernames can have dots; sourced files cannot
 encode_user () {
@@ -16,7 +16,9 @@ update_or_add () {
     # strip any existing value
     sed -i "" "/^${key}=/d" "$config"
   fi
-  echo "$key=$value" >> "$config"
+  if [ -n "$value" ]; then
+    echo "$key=$value" >> "$config"
+  fi
 }
 
 get_username () {
@@ -24,49 +26,62 @@ get_username () {
   if [ -z "$active_user" ]; then
     read -p "Git Username: " active_user
   fi
-  read -s -p "GitHub Personal Access Token for $active_user: " token
+  read -s -p "Git Personal Access Token for $active_user: " token
   echo
   active_user_e="$(encode_user $active_user)"
-  key="GITHUB_TOKEN_$active_user_e"
+  key="GIT_TOKEN_$active_user_e"
   update_or_add "$key" "$token"
   echo "$active_user"
 }
 
-set_default () {
+edit_config () {
   usernames=()
   i=0
   options="Users:"
   message="Select default username (#"
   while read -r line; do
     line="${line%%=*}"
-    name="${line##GITHUB_TOKEN_}"
+    name="${line##GIT_TOKEN_}"
     if ! [ "$name" == "$line" ]; then
       let i+=1
       usernames+=($name)
-      if [ "$GITHUB_DEFAULT_USER" == "$name" ]; then
+      if [ "$GIT_DEFAULT_USER" == "$name" ]; then
+        message="$message or blank for '$name'"
         name="$name * (current default)"
-        message="$message or blank for $i"
         inuse=$i
       fi
       options="${options}\n - [$i] $name"
     fi # if we find unexpected lines, just skip 'em
   done < "$config"
 
-  if [ "${#usernames[@]}" -eq 1 ]; then
-    new_default_username=${usernames[0]}
+  if [ "${#usernames[@]}" -eq 0 ]; then
+    echo "No users to edit! Try adding a token with $me -u"
+    exit
   else
     echo "$options"
     read -p "$message) " num
     [ -z "$num" ] && num=$inuse
     if [ -z "$num" ]; then
-      echo "Not setting a default - specify --username when cloning"
-      new_default_username=""
+      echo "No user selected - exiting."
+      exit
     else
       let num-=1
-      new_default_username=${usernames[num]}
+      username="${usernames[num]}"
+      printf "Actions:\n  [1] Edit ${username}'s token\n  [2] Set ${username} as default\n  [3] Remove ${username} (NOT RECOVERABLE)\n"
+      read -p "Select Action for $username: " action
+      if [ -z "$action" ]; then
+        echo "No action chosen"
+      elif [ $action == '1' ] ; then
+        get_username "$username" > /dev/null
+      elif [ $action == '2' ] ; then
+        update_or_add 'GIT_DEFAULT_USER' "$username"
+      elif [ $action == '3' ] ; then
+        update_or_add "GIT_TOKEN_$username"
+      else
+        echo "Input not recognized"
+      fi
     fi
   fi
-  update_or_add 'GITHUB_DEFAULT_USER' "$new_default_username"
 }
 
 set_personal () {
@@ -89,43 +104,15 @@ END
 }
 
 me="$(basename $0)"
-usage="$me makes having multiple GitHub accounts more managable via
+usage="$me makes having multiple Gitb accounts more managable via
 separate Pesrsonal Access Tokens, HTTPS repositories, hierarchical .gitconfigs,
 and your OS's keychain.
 
--u[sername]   The github username to use
+-e[edit]      Update default and tokens
 -g[itconfig]  Modify ~/.gitconfig.personal
--d[efault]    Update default user
+-u[sername]   The git username to use
 -b[branch]    Checks out a specific branch of the project before continuing
--r[ecurse]    Recursively checkout (for projects with submodules)
-
-Config is stored in ${config}, and $me will help manage your ~/.gitconfig.personal file as well.*
-
-It is recommended that you structure your projects like
-├── username1           # This folder name doesn't matter - I prefer using client names
-│   ├── .gitconfig      # user.name and user.email specific to username1
-│   ├── projectA
-│   └── projectB
-└── username2           # This folder name doesn't matter - I prefer using client names
-    ├── .gitconfig       # user.name and user.email specific to username1
-    ├── projectC
-    └── projectD
-
-** Setup **
-Anytime you call $me with a new username it will:
-  - Prompt for a GitHub Personal Access Token for the username. See https://github.com/settings/tokens
-  - If you have more than one username saved, prompt for a 'default' username
-  - Create/update its config file
-  - Create/update ~/.gitconfig.personal
-
-** Normal Use **
-Once setup, you can call $me with either:
-  - $me https://github.com/user_or_org/project_name
-  - $me user_or_org/project_name
-
-$me will:
-- Clone project (optionally clones specific branch and/or recursively)
-- Updates project's .git/config to have 'include.path=../../.gitconfig'."
+-r[ecurse]    Recursively checkout (for projects with submodules)"
 
 if [ -f "$config" ]; then
   source "$config"
@@ -136,12 +123,13 @@ else
   set_personal
 fi
 
-while getopts ':rdgu:b:h' option; do
+while getopts ':rgu:e:b:h' option; do
   case "$option" in
     h) echo "$usage"
       exit
       ;;
-    d) [ -z "$ran_set" ] && set_default
+    e) username="$OPTARG"
+      [ -z "$ran_set" ] && edit_config
       exit
       ;;
     g) [ -z "$ran_set" ] && set_personal
@@ -171,18 +159,18 @@ if [ -z "$repo" ]; then
   echo "$usage"
   exit
 elif [ -z "$username" ]; then
-  if [ -z "$GITHUB_DEFAULT_USER" ]; then
+  if [ -z "$GIT_DEFAULT_USER" ]; then
     username=$(get_username)
     set_default
     set_personal
   else
-    username="$GITHUB_DEFAULT_USER"
+    username="$GIT_DEFAULT_USER"
   fi
 fi
 
 username_e=$(encode_user $username)
 
-token_key="GITHUB_TOKEN_$username_e"
+token_key="GIT_TOKEN_$username_e"
 token="${!token_key}"
 
 if [ -z "$token" ]; then
