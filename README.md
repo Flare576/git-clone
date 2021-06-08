@@ -1,6 +1,6 @@
 # hub-clone
 
-Makes having multiple GitHub accounts more manageable via separate Personal Access Tokens, HTTPS
+Makes having multiple Git accounts more manageable via separate Personal Access Tokens, HTTPS
 repositories, hierarchical .gitconfigs, and your OS's keychain.
 
 ## Installation
@@ -18,13 +18,23 @@ to my .profile (or `.zshrc` or `.bashrc` or...)
 > needs just a bit more refinement
 
 ## Setup
-Anytime you call `hub-clone` with a new username it will:
-  - Prompt for a GitHub Personal Access Token for the username. See https://github.com/settings/tokens
-  - If you have more than one username saved, prompt for a 'default' username
+Anytime you call `git-clone` with a new username it will:
+  - Prompt for a Git Personal Access Token for the username. See
+    - [GitHub](https://github.com/settings/tokens)
+    - [GitLab](https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html)
+    - [BitBucket](https://confluence.atlassian.com/bitbucketserver/personal-access-tokens-939515499.html)
+  - If you already have another username saved, prompt for a 'default' username
   - Create/update its config file
-  - Create/update ~/.gitconfig.personal
+    - Located in ~/.config/git_clone/config
+  - Create/update ~/.gitconfig.personal*
 
-Optionally, you can also use `hub-clone` to manage your git user.name and user.email per project. To
+> NOTE: Be sure to use the username associated with the token; while GitHub allows HTTPS connections
+> using only the token, other git systems may not; `git-clone` uses the full name:token syntax to be
+> universally compatible
+
+### Project-specific .gitconfig files
+
+Optionally, you can also use `git-clone` to manage your git user.name and user.email per project. To
 do this, you'll want to arrange your projects hierarchically:
 
 ```
@@ -38,12 +48,30 @@ do this, you'll want to arrange your projects hierarchically:
     └── projectD
 ```
 
+While cloning new repositories, `git-clone` will add an **include** section to the project's
+`./git/config` file, allowing you to use different email addresses (or names) for different
+projects.
+
 ## Normal Use
 Once setup, you can call `hub-clone` with either:
 
 ```
-  $) hub-clone https://github.com/user_or_org/project_name
-  $) hub-clone user_or_org/project_name
+  $) cd ~/Projects/Personal
+  # Use the default (I usually set my personal account as default)
+  $) git-clone https://github.com/Flare576/git_clone
+  $) git-clone Flare576/dotfiles # user/project syntax Only works with github
+  # I now need to access a client project
+  $) cd ~/Projects/Client1
+  $) cat .gitconfig
+     [user]
+       name: Flare FiveSeventySix Esquire
+       email: flare.fiveseventysix@client.com
+  $) git-clone -u client1.login https://bitbucketserver.com/scm/projectname/teamsinspace.git
+     # git clone output
+  $) cat teamsinspace/.git/config
+     ...
+     [include]
+       path=/Users/flare576/Projects/Client1/.gitconfig
 ```
 
 `hub-clone` will:
@@ -65,7 +93,6 @@ TODO list
 
 Config is stored in ${config}, and `hub-clone` will help manage your ~/.gitconfig.personal file as well.*
 
-It is recommended that you structure your projects like
 ## TODO:
 
 - Allow long-name options
@@ -74,4 +101,3 @@ It is recommended that you structure your projects like
       proper handle this?
 - Add tests
 - Verify that username-specific .gitconfig exists in root before updating project's
-- Change -d to --manage and allow setting default and deleting entries

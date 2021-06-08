@@ -1,6 +1,11 @@
 #!/bin/sh
 config="$HOME/.config/clone/config"
 
+# usernames can have dots; sourced files cannot
+encode_user () {
+  echo "${1//\./DOT}"
+}
+
 update_or_add () {
   key="$1"
   value="$2"
@@ -17,11 +22,12 @@ update_or_add () {
 get_username () {
   active_user="$1"
   if [ -z "$active_user" ]; then
-    read -p "GitHub Username: " active_user
+    read -p "Git Username: " active_user
   fi
   read -s -p "GitHub Personal Access Token for $active_user: " token
   echo
-  key="GITHUB_TOKEN_$active_user"
+  active_user_e="$(encode_user $active_user)"
+  key="GITHUB_TOKEN_$active_user_e"
   update_or_add "$key" "$token"
   echo "$active_user"
 }
@@ -154,7 +160,8 @@ done
 shift $((OPTIND -1))
 
 repo="$1"
-# support hub-style shortnames user-or-org/project
+# support hub-style shortnames user-or-org/project for github
+# shortnames are not supported for gitlab, bitbucket, etc.
 if [[ "$repo" =~ ^[^/]*/[^/]*$ ]]; then
   repo="https://github.com/$repo"
 fi
@@ -172,21 +179,22 @@ elif [ -z "$username" ]; then
     username="$GITHUB_DEFAULT_USER"
   fi
 fi
-token_key="GITHUB_TOKEN_$username"
+
+username_e=$(encode_user $username)
+
+token_key="GITHUB_TOKEN_$username_e"
 token="${!token_key}"
 
 if [ -z "$token" ]; then
   get_username "$username" > /dev/null
   echo
-  set_default
-  set_personal
 fi
 
 root=$(pwd)
 # https://www.tldp.org/LDP/abs/html/string-manipulation.html
 name=${repo##*/} # Deletes longest instance of * (anything)/ (the slash) from front
 name=${name%.git} # Deletes shortest instance of ".git" from back
-auth_repo=${repo/github.com/$token@github.com}
+auth_repo=${repo/https:\/\//https://$username:$token@}
 include="[include]
   path = ${root}/.gitconfig"
 command="git clone"
