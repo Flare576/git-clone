@@ -6,6 +6,10 @@ encode_user () {
   echo "${1//\./DOT}"
 }
 
+decode_user () {
+  echo "${1//DOT/.}"
+}
+
 update_or_add () {
   key="$1"
   value="$2"
@@ -35,52 +39,61 @@ get_username () {
 }
 
 edit_config () {
-  usernames=()
-  i=0
-  options="Users:"
-  message="Select default username (#"
-  while read -r line; do
-    line="${line%%=*}"
-    name="${line##GIT_TOKEN_}"
-    if ! [ "$name" == "$line" ]; then
-      let i+=1
-      usernames+=($name)
-      if [ "$GIT_DEFAULT_USER" == "$name" ]; then
-        message="$message or blank for '$name'"
-        name="$name * (current default)"
-        inuse=$i
-      fi
-      options="${options}\n - [$i] $name"
-    fi # if we find unexpected lines, just skip 'em
-  done < "$config"
-
-  if [ "${#usernames[@]}" -eq 0 ]; then
-    echo "No users to edit! Try adding a token with $me -u"
-    exit
+  if [ -n "$1" ]; then
+    username="$1"
   else
-    echo "$options"
-    read -p "$message) " num
-    [ -z "$num" ] && num=$inuse
-    if [ -z "$num" ]; then
-      echo "No user selected - exiting."
+    usernames=()
+    i=0
+    options="Users:"
+    message="Select default username (#"
+    while read -r line; do
+      line="${line%%=*}"
+      name="${line##GIT_TOKEN_}"
+      if ! [ "$name" == "$line" ]; then
+        name=$(decode_user "$name")
+        let i+=1
+        usernames+=($name)
+        if [ "$GIT_DEFAULT_USER" == "$name" ]; then
+          message="$message or blank for '$name'"
+          name="$name * (current default)"
+          inuse=$i
+        fi
+        options="${options}\n - [$i] $name"
+      fi # if we find unexpected lines, just skip 'em
+    done < "$config"
+
+    if [ "${#usernames[@]}" -eq 0 ]; then
+      echo "No users to edit! Try adding a token with $me -u"
       exit
     else
+      echo "$options"
+      read -p "$message) " num
+      [ -z "$num" ] && num=$inuse
+      if [ -z "$num" ]; then
+        echo "No user selected - exiting."
+        exit
+      fi
       let num-=1
       username="${usernames[num]}"
-      printf "Actions:\n  [1] Edit ${username}'s token\n  [2] Set ${username} as default\n  [3] Remove ${username} (NOT RECOVERABLE)\n"
-      read -p "Select Action for $username: " action
-      if [ -z "$action" ]; then
-        echo "No action chosen"
-      elif [ $action == '1' ] ; then
-        get_username "$username" > /dev/null
-      elif [ $action == '2' ] ; then
-        update_or_add 'GIT_DEFAULT_USER' "$username"
-      elif [ $action == '3' ] ; then
-        update_or_add "GIT_TOKEN_$username"
-      else
-        echo "Input not recognized"
-      fi
     fi
+  fi
+  printf "Actions:
+  [1] Edit ${username}'s token
+  [2] Set ${username} as default
+  [3] Remove ${username} (NOT RECOVERABLE)
+  (Pressing Enter with no selection will exit)
+"
+  read -p "Select Action for $username: " action
+  if [ -z "$action" ]; then
+    echo "No action chosen"
+  elif [ $action == '1' ] ; then
+    get_username "$username" > /dev/null
+  elif [ $action == '2' ] ; then
+    update_or_add 'GIT_DEFAULT_USER' "$username"
+  elif [ $action == '3' ] ; then
+    update_or_add "GIT_TOKEN_$username"
+  else
+    echo "Input not recognized"
   fi
 }
 
@@ -123,17 +136,14 @@ else
   set_personal
 fi
 
-while getopts ':rgu:e:b:h' option; do
+while getopts ':rgu:eb:h' option; do
   case "$option" in
     h) echo "$usage"
       exit
       ;;
-    e) username="$OPTARG"
-      [ -z "$ran_set" ] && edit_config
-      exit
+    e) [ -z "$ran_set" ] && do_edit='true'
       ;;
-    g) [ -z "$ran_set" ] && set_personal
-      exit
+    g) [ -z "$ran_set" ] && do_personal='true'
       ;;
     u) username="$OPTARG"
       ;;
@@ -148,6 +158,16 @@ done
 shift $((OPTIND -1))
 
 repo="$1"
+
+if [ -n "$do_edit" ]; then
+  edit_config "$username"
+  ran_set='true'
+fi
+if [ -n "$do_personal" ]; then
+  set_personal
+  ran_set='true'
+fi
+
 # support hub-style shortnames user-or-org/project for github
 # shortnames are not supported for gitlab, bitbucket, etc.
 if [[ "$repo" =~ ^[^/]*/[^/]*$ ]]; then
@@ -155,8 +175,10 @@ if [[ "$repo" =~ ^[^/]*/[^/]*$ ]]; then
 fi
 
 if [ -z "$repo" ]; then
-  echo "[31mNo repo URL provided[0m"
-  echo "$usage"
+  if [ -z "$ran_set" ]; then
+    echo "[31mNo repo URL provided[0m"
+    echo "$usage"
+  fi
   exit
 elif [ -z "$username" ]; then
   if [ -z "$GIT_DEFAULT_USER" ]; then
