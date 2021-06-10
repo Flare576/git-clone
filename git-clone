@@ -117,14 +117,14 @@ END
 }
 
 me="$(basename $0)"
-usage="$me makes having multiple Gitb accounts more managable via
-separate Pesrsonal Access Tokens, HTTPS repositories, hierarchical .gitconfigs,
+usage="$me makes having multiple Git accounts more manageable via
+separate Personal Access Tokens, HTTPS repositories, hierarchical .gitconfigs,
 and your OS's keychain.
 
--e[edit]      Update default and tokens
+-e[dit]      Update default and tokens
 -g[itconfig]  Modify ~/.gitconfig.personal
 -u[sername]   The git username to use
--b[branch]    Checks out a specific branch of the project before continuing
+-b[ranch]    Checks out a specific branch of the project before continuing
 -r[ecurse]    Recursively checkout (for projects with submodules)"
 
 if [ -f "$config" ]; then
@@ -151,7 +151,7 @@ while getopts ':rgu:eb:h' option; do
       ;;
     r) recurse="deep"
       ;;
-    *) echo "getoutahere with that $OPTARG"
+    *) echo "Unrecognized param: $OPTARG"
       ;;
   esac
 done
@@ -205,7 +205,8 @@ root=$(pwd)
 name=${repo##*/} # Deletes longest instance of * (anything)/ (the slash) from front
 name=${name%.git} # Deletes shortest instance of ".git" from back
 auth_repo=${repo/https:\/\//https://$username:$token@}
-include="[include]
+parent_config="${root}/.gitconfig"
+[ -f "$parent_config" ] && include="[include]
   path = ${root}/.gitconfig"
 command="git clone"
 

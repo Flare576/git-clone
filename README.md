@@ -43,7 +43,7 @@ do this, you'll want to arrange your projects hierarchically:
 │   ├── projectA
 │   └── projectB
 └── username2           # This folder name doesn't matter - I prefer using client names
-    ├── .gitconfig       # user.name and user.email specific to username1
+    ├── .gitconfig       # user.name and user.email specific to username2
     ├── projectC
     └── projectD
 ```
@@ -52,8 +52,7 @@ While cloning new repositories, `git-clone` will add an **include** section to t
 `./git/config` file, allowing you to use different email addresses (or names) for different
 projects.
 
-## Normal Use
-Once setup, you can call `git-clone` with either:
+Here's a quick example with some command line wandering:
 
 ```
   $) cd ~/Projects/Personal
@@ -74,24 +73,20 @@ Once setup, you can call `git-clone` with either:
        path=/Users/flare576/Projects/Client1/.gitconfig
 ```
 
+## Normal Use
+Once setup, you can call `git-clone` with either:
+
+```
+  $) git-clone Flare576/dotfiles # github project, using default account
+  $) git-clone https://github.com/Flare576/git_clone
+  $) git-clone -u client1.login https://bitbucketserver.com/scm/projectname/teamsinspace.git
+```
+
 `git-clone` will:
 - Use the `-u[sername]` you provide or, if absent, the GIT_DEFAULT_USER value from the config
-- Clone project (optionally clones specific branch and/or recursively)
+- Clone project (optionally clones specific branch and/or recursively - see options)
 - Updates project's .git/config to have 'include.path=../../.gitconfig'." (see folder structure
-    above)
-
-## Options:
-
-> Note: currently only the short versions of these options work - allowing the long name is on my
-TODO list
-
--u[sername]   The github username to use
--g[itconfig]  Modify ~/.gitconfig.personal
--d[efault]    Update default user
--b[branch]    Checks out a specific branch of the project before continuing
--r[ecurse]    Recursively checkout (for projects with submodules)
-
-Config is stored in ${config}, and `git-clone` will help manage your ~/.gitconfig.personal file as well.*
+    above) if present
 
 ## TODO:
 
@@ -100,4 +95,3 @@ Config is stored in ${config}, and `git-clone` will help manage your ~/.gitconfi
   - Is it different for each OS? Are there systems which don't have this concept? How does git
       proper handle this?
 - Add tests
-- Verify that username-specific .gitconfig exists in root before updating project's
