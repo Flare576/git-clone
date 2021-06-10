@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 config="$HOME/.config/git-clone/config"
 version="0.0.1"
 
