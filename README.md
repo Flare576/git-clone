@@ -14,8 +14,10 @@ alias clone=git-clone
 
 to my .profile (or `.zshrc` or `.bashrc` or...)
 
-> Note: I am working on getting `git-clone` added to [Homebrew](https://brew.sh/), but I think it
-> needs just a bit more refinement
+> ~~Note: I am working on getting `git-clone` added to [Homebrew](https://brew.sh/), but I think it needs just a bit more refinement~~
+>
+> I read through the Homebrew guidelines and I don't believe `git-clone` fits the bill yet; maybe
+> someday!
 
 ## Setup
 Anytime you call `git-clone` with a new username it will:

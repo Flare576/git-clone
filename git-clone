@@ -1,5 +1,6 @@
 #!/bin/sh
 config="$HOME/.config/git-clone/config"
+version="0.0.1"
 
 # usernames can have dots; sourced files cannot
 encode_user () {
@@ -125,7 +126,8 @@ and your OS's keychain.
 -g[itconfig]  Modify ~/.gitconfig.personal
 -u[sername]   The git username to use
 -b[ranch]    Checks out a specific branch of the project before continuing
--r[ecurse]    Recursively checkout (for projects with submodules)"
+-r[ecurse]    Recursively checkout (for projects with submodules)
+-v[ersion]    Print $me version and exit"
 
 if [ -f "$config" ]; then
   source "$config"
@@ -136,9 +138,12 @@ else
   set_personal
 fi
 
-while getopts ':rgu:eb:h' option; do
+while getopts ':rgu:eb:hv' option; do
   case "$option" in
     h) echo "$usage"
+      exit
+      ;;
+    v) echo "Version $version"
       exit
       ;;
     e) [ -z "$ran_set" ] && do_edit='true'
