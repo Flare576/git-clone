@@ -109,7 +109,15 @@ set_personal () {
     echo "Setting up global git information"
     read -p "Global git user name: " guser
     read -p "Global git user email: " gemail
-    cat<<END > $HOME/dotfiles/.gitconfig.personal
+    if [ -d "$HOME/dotfiles" ]; then
+      echo "Using your ~/dotfiles folder"
+      personal="$HOME/dotfiles/.gitconfig.personal"
+      touch "$personal"
+      ln -sf "$personal" "$HOME"
+    else
+      personal="$HOME/.gitconfig.personal"
+    fi
+    cat<<END > "$personal"
 [user]
   name = ${guser}
   email = ${gemail}
@@ -128,15 +136,6 @@ and your OS's keychain.
 -b[ranch]    Checks out a specific branch of the project before continuing
 -r[ecurse]    Recursively checkout (for projects with submodules)
 -v[ersion]    Print $me version and exit"
-
-if [ -f "$config" ]; then
-  source "$config"
-else
-  ran_set="true"
-  username=$(get_username "$username")
-  set_default
-  set_personal
-fi
 
 while getopts ':rgu:eb:hv' option; do
   case "$option" in
@@ -161,6 +160,15 @@ while getopts ':rgu:eb:hv' option; do
   esac
 done
 shift $((OPTIND -1))
+
+if [ -f "$config" ]; then
+  source "$config"
+else
+  ran_set="true"
+  username=$(get_username "$username")
+  set_default
+  set_personal
+fi
 
 repo="$1"
 
