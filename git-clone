@@ -1,6 +1,6 @@
 #!/bin/bash
 config="$HOME/.config/git-clone/config"
-version="0.0.1"
+version="0.0.2"
 
 # usernames can have dots; sourced files cannot
 encode_user () {
@@ -98,30 +98,38 @@ edit_config () {
   fi
 }
 
+# Attempts to use the `dotfiles` folder concepts from Flare576/dotfiles. Where git is concerned:
+# - generic settings are stored in ~/dotfiles/.gitconfig
+# - personal details (name/email) are stored in ~/dotfiles/.gitconfig.personal
+# - ~/.gitconfig and ~/.gitconfig.personal exist as symlinks to the ~/dotfiles instances
+# - ~/dotfiles/.gitconfig has a section `include.path=~/.gitconfig.personal`
+# If the ~/dotfiles folder isn't present, it will assume the user is handling the global settings with git
 set_personal () {
-  if [ -f "$HOME/.gitconfig.personal" ]; then
+  if [ -f "$HOME/.gitconfig" ]; then
     read -p "Update global git user? (y/N)" global_git
   else
     global_git="y"
   fi
-
   if [[ $global_git =~ ^[yY] ]] ; then
     echo "Setting up global git information"
     read -p "Global git user name: " guser
     read -p "Global git user email: " gemail
-    if [ -d "$HOME/dotfiles" ]; then
+
+    if ! [ -d "$HOME/dotfiles" ]; then
+      git config --global user.name "$guser"
+      git config --global user.email "$gemail"
+      return
+    else
       echo "Using your ~/dotfiles folder"
       personal="$HOME/dotfiles/.gitconfig.personal"
       touch "$personal"
       ln -sf "$personal" "$HOME"
-    else
-      personal="$HOME/.gitconfig.personal"
-    fi
-    cat<<END > "$personal"
+      cat<<END > "$personal"
 [user]
   name = ${guser}
   email = ${gemail}
 END
+    fi
   fi
 }
 
