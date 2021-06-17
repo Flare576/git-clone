@@ -1,6 +1,6 @@
 #!/bin/bash
 config="$HOME/.config/git-clone/config"
-version="0.0.5"
+version="0.0.3"
 
 # usernames can have dots; sourced files cannot
 encode_user () {
