@@ -5,8 +5,11 @@ repositories, hierarchical .gitconfigs, and your OS's keychain.
 
 ## Installation
 
-`git-clone` is a bash script, so putting it anywhere in your $PATH is all you really need to do! I
-prefer a shorter name, so I also add
+`git-clone` is a bash script, so putting it anywhere in your $PATH is all you really need to do!
+
+You can also do `brew install flare576/scripts/git-clone`
+
+I prefer a shorter name, so I also add
 
 ```
 alias clone=git-clone
