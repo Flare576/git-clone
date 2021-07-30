@@ -138,14 +138,15 @@ usage="$me makes having multiple Git accounts more manageable via
 separate Personal Access Tokens, HTTPS repositories, hierarchical .gitconfigs,
 and your OS's keychain.
 
--e[dit]      Update default and tokens
+-e[dit]       Update default and tokens
+-f[ix]        While in a working directory, update origin url to use default/given user
 -g[itconfig]  Modify ~/.gitconfig.personal
 -u[sername]   The git username to use
--b[ranch]    Checks out a specific branch of the project before continuing
+-b[ranch]     Checks out a specific branch of the project before continuing
 -r[ecurse]    Recursively checkout (for projects with submodules)
 -v[ersion]    Print $me version and exit"
 
-while getopts ':rgu:eb:hv' option; do
+while getopts ':rgu:efb:hv' option; do
   case "$option" in
     h) echo "$usage"
       exit
@@ -154,6 +155,8 @@ while getopts ':rgu:eb:hv' option; do
       exit
       ;;
     e) [ -z "$ran_set" ] && do_edit='true'
+      ;;
+    f) do_fix="true"
       ;;
     g) [ -z "$ran_set" ] && do_personal='true'
       ;;
@@ -189,6 +192,29 @@ if [ -n "$do_personal" ]; then
   ran_set='true'
 fi
 
+if [ -z "$username" ]; then
+  if [ -z "$GIT_DEFAULT_USER" ]; then
+    username=$(get_username)
+    edit_config "$username"
+    set_personal
+  else
+    username="$GIT_DEFAULT_USER"
+  fi
+fi
+username_e=$(encode_user $username)
+token_key="GIT_TOKEN_$username_e"
+token="${!token_key}"
+if [ -z "$token" ]; then
+  get_username "$username" > /dev/null
+  echo
+fi
+
+if [ -n "$do_fix" ] && [ -f ".git/config" ]; then
+  echo "Updating .git/config to use $username"
+  sed -i"" -e "s%https?://(.*@)?%https://$username:$token@%" .git/config
+  exit
+fi
+
 # support hub-style shortnames user-or-org/project for github
 # shortnames are not supported for gitlab, bitbucket, etc.
 if [[ "$repo" =~ ^[^/]*/[^/]*$ ]]; then
@@ -201,24 +227,6 @@ if [ -z "$repo" ]; then
     echo "$usage"
   fi
   exit
-elif [ -z "$username" ]; then
-  if [ -z "$GIT_DEFAULT_USER" ]; then
-    username=$(get_username)
-    edit_config "$username"
-    set_personal
-  else
-    username="$GIT_DEFAULT_USER"
-  fi
-fi
-
-username_e=$(encode_user $username)
-
-token_key="GIT_TOKEN_$username_e"
-token="${!token_key}"
-
-if [ -z "$token" ]; then
-  get_username "$username" > /dev/null
-  echo
 fi
 
 root=$(pwd)
