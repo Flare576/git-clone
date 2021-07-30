@@ -174,7 +174,7 @@ if [ -f "$config" ]; then
 else
   ran_set="true"
   username=$(get_username "$username")
-  set_default
+  edit_config "$username"
   set_personal
 fi
 
@@ -204,7 +204,7 @@ if [ -z "$repo" ]; then
 elif [ -z "$username" ]; then
   if [ -z "$GIT_DEFAULT_USER" ]; then
     username=$(get_username)
-    set_default
+    edit_config "$username"
     set_personal
   else
     username="$GIT_DEFAULT_USER"
