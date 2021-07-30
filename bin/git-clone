@@ -1,6 +1,6 @@
 #!/bin/bash
 config="$HOME/.config/git-clone/config"
-version="0.1.0"
+version="0.1.1"
 
 # usernames can have dots; sourced files cannot
 encode_user () {
@@ -27,16 +27,17 @@ update_or_add () {
 }
 
 get_username () {
-  active_user="$1"
-  if [ -z "$active_user" ]; then
-    read -p "Git Username: " active_user
+  username="$1"
+  if [ -z "$username" ]; then
+    read -p "Git Username: " username
   fi
-  read -s -p "Git Personal Access Token for $active_user: " token
-  echo
-  active_user_e="$(encode_user $active_user)"
+  read -s -p "Git Personal Access Token for $username: " token
+  echo ""
+  active_user_e="$(encode_user $username)"
   key="GIT_TOKEN_$active_user_e"
   update_or_add "$key" "$token"
-  echo "$active_user"
+  # Set token for later in process
+  eval "$key=$token"
 }
 
 edit_config () {
@@ -66,6 +67,8 @@ edit_config () {
     if [ "${#usernames[@]}" -eq 0 ]; then
       echo "No users to edit! Try adding a token with $me -u"
       exit
+    elif [ "${#usernames[@]}" -eq 1 ]; then
+      num=0
     else
       printf "$options\n"
       read -p "$message) " num
@@ -78,13 +81,18 @@ edit_config () {
       username="${usernames[num]}"
     fi
   fi
-  printf "Actions:
-  [1] Edit ${username}'s token
-  [2] Set ${username} as default
-  [3] Remove ${username} (NOT RECOVERABLE)
-  (Pressing Enter with no selection will exit)
-"
-  read -p "Select Action for $username: " action
+
+  if [ -n "$2" ]; then
+    action="$2"
+  else
+    printf "Actions:
+    [1] Edit ${username}'s token
+    [2] Set ${username} as default
+    [3] Remove ${username} (NOT RECOVERABLE)
+    (Pressing Enter with no selection will exit)
+  "
+    read -p "Select Action for $username: " action
+  fi
   if [ -z "$action" ]; then
     echo "No action chosen"
   elif [ $action == '1' ] ; then
@@ -176,9 +184,11 @@ if [ -f "$config" ]; then
   source "$config"
 else
   ran_set="true"
-  username=$(get_username "$username")
-  edit_config "$username"
+  get_username "$username"
+  # Mark first user as default
+  edit_config "$username" "2"
   set_personal
+  echo "user1: $username"
 fi
 
 repo="$1"
