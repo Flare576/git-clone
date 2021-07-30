@@ -92,6 +92,3 @@ Here's a quick example with some command line wandering:
 
 - ~~Allow long-name options~~ After some research, this is a low priority
 - Add tests
-- ~~I am working on getting `git-clone` added to [Homebrew](https://brew.sh/), but I think it needs just a bit more refinement~~
-I read through the Homebrew guidelines and I don't believe `git-clone` fits the bill yet; maybe
-  someday!
