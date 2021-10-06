@@ -1,6 +1,6 @@
 #!/bin/bash
 config="$HOME/.config/git-clone/config"
-version="0.1.1"
+version="0.1.2"
 
 # usernames can have dots; sourced files cannot
 encode_user () {
@@ -239,14 +239,11 @@ if [ -z "$repo" ]; then
   exit
 fi
 
-root=$(pwd)
 # https://www.tldp.org/LDP/abs/html/string-manipulation.html
 name=${repo##*/} # Deletes longest instance of * (anything)/ (the slash) from front
 name=${name%.git} # Deletes shortest instance of ".git" from back
 auth_repo=${repo/https:\/\//https://$username:$token@}
-parent_config="${root}/.gitconfig"
-[ -f "$parent_config" ] && include="[include]
-  path = ${root}/.gitconfig"
+
 command="git clone"
 
 message="You're checking out $repo as $username"
@@ -262,9 +259,16 @@ fi
 echo "$message"
 $command
 if [ $? -eq 0 ]; then
-  cd "$name" || exit
+  parent_config="$(pwd)/.gitconfig"
+  if [ -f "$parent_config" ]; then
+    include="[include]
+    path = $parent_config"
+    echo "$include" >> .git/config
+  else
+    echo "No parent config found at $parent_config, skipping user config"
+  fi
 
-  echo "$include" >> .git/config
+  cd "$name" || exit
 
   if [ -n "$recurse" ]; then
     while read -r line; do
