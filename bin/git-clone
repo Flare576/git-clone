@@ -1,6 +1,6 @@
 #!/bin/bash
 config="$HOME/.config/git-clone/config"
-version="0.1.2"
+version="0.1.3"
 
 # usernames can have dots; sourced files cannot
 encode_user () {
@@ -152,7 +152,14 @@ and your OS's keychain.
 -u[sername]   The git username to use
 -b[ranch]     Checks out a specific branch of the project before continuing
 -r[ecurse]    Recursively checkout (for projects with submodules)
--v[ersion]    Print $me version and exit"
+-v[ersion]    Print $me version and exit
+
+Examples
+clone -e  # Add accounts, define default
+clone https://github.com/flare576/git-clone # use default username/PAT
+clone flare576/git-clone # Assumes 'hub' style username/project
+clone my-project # Uses default username
+clone -u otheraccount https://other.com/project # supports multiple usernames"
 
 while getopts ':rgu:efb:hv' option; do
   case "$option" in
@@ -225,6 +232,10 @@ if [ -n "$do_fix" ] && [ -f ".git/config" ]; then
   exit
 fi
 
+# If only provided project name, assume username is owner
+if [[ "$repo" != *"/"* ]]; then
+  repo="$username/$repo"
+fi
 # support hub-style shortnames user-or-org/project for github
 # shortnames are not supported for gitlab, bitbucket, etc.
 if [[ "$repo" =~ ^[^/]*/[^/]*$ ]]; then
