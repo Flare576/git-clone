@@ -1,6 +1,6 @@
 #!/bin/bash
 config="$HOME/.config/git-clone/config"
-version="0.1.3"
+version="0.1.4"
 
 # usernames can have dots; sourced files cannot
 encode_user () {
@@ -147,7 +147,7 @@ separate Personal Access Tokens, HTTPS repositories, hierarchical .gitconfigs,
 and your OS's keychain.
 
 -e[dit]       Update default and tokens
--f[ix]        While in a working directory, update origin url to use default/given user
+-f[ix]        While in a working directory, update origin url to use default/given user and fix [include]
 -g[itconfig]  Modify ~/.gitconfig.personal
 -u[sername]   The git username to use
 -b[ranch]     Checks out a specific branch of the project before continuing
@@ -229,6 +229,20 @@ fi
 if [ -n "$do_fix" ] && [ -f ".git/config" ]; then
   echo "Updating .git/config to use $username"
   sed -i"" -e "s%https?://(.*@)?%https://$username:$token@%" .git/config
+
+  if [ -z "$(grep '\[include\]' .git/config)" ]; then
+    parent_dir="$(pwd)"
+    parent_dir="${parent_dir%/*}"
+    parent_config="$parent_dir/.gitconfig"
+    if [ -f "$parent_config" ]; then
+      echo "Updating .git/config to have [include] for parent config"
+      include="[include]
+  path = $parent_config"
+      echo "$include" >> .git/config
+    else
+      echo "No parent config found at $parent_config, skipping user config"
+    fi
+  fi
   exit
 fi
 
