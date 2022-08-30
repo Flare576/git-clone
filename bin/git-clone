@@ -1,6 +1,6 @@
 #!/bin/bash
 config="$HOME/.config/git-clone/config"
-version="0.1.5"
+version="0.1.6"
 
 # usernames can have dots; sourced files cannot
 encode_user () {
@@ -243,6 +243,11 @@ if [ -n "$do_fix" ] && [ -f ".git/config" ]; then
       echo "No parent config found at $parent_config, skipping user config"
     fi
   fi
+  exit
+fi
+
+# If no repo/project provided, stop
+if [ -z "$1" ]; then
   exit
 fi
 
