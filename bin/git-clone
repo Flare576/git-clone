@@ -1,6 +1,6 @@
 #!/bin/bash
 config="$HOME/.config/git-clone/config"
-version="0.1.6"
+version="0.1.7"
 
 # usernames can have dots; sourced files cannot
 encode_user () {
@@ -228,7 +228,7 @@ fi
 
 if [ -n "$do_fix" ] && [ -f ".git/config" ]; then
   echo "Updating .git/config to use $username"
-  sed -i"" -e "s%https?://(.*@)?%https://$username:$token@%" .git/config
+  sed -i.bak -E "s%https?://(.*@)?%https://$username:$token@%" .git/config
 
   if [ -z "$(grep '\[include\]' .git/config)" ]; then
     parent_dir="$(pwd)"
