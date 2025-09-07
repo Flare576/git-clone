@@ -1,6 +1,6 @@
 #!/bin/bash
 config="$HOME/.config/git-clone/config"
-version="0.1.7"
+version="0.1.8"
 
 # usernames can have dots; sourced files cannot
 encode_user () {
@@ -19,7 +19,7 @@ update_or_add () {
     mkdir -p "$folder"
   else
     # strip any existing value
-    sed -i "" "/^${key}=/d" "$config"
+    sed -i.bkp -Ee "/^${key}=/d" "$config" && rm "${config}.bkp"
   fi
   if [ -n "$value" ]; then
     echo "$key=$value" >> "$config"
@@ -29,11 +29,11 @@ update_or_add () {
 get_username () {
   username="$1"
   if [ -z "$username" ]; then
-    read -p "Git Username: " username
+    read -rp "Git Username: " username
   fi
-  read -s -p "Git Personal Access Token for $username: " token
+  read -s -rp "Git Personal Access Token for $username: " token
   echo ""
-  active_user_e="$(encode_user $username)"
+  active_user_e="$(encode_user "$username")"
   key="GIT_TOKEN_$active_user_e"
   update_or_add "$key" "$token"
   # Set token for later in process
@@ -53,8 +53,8 @@ edit_config () {
       name="${line##GIT_TOKEN_}"
       if ! [ "$name" == "$line" ]; then
         name=$(decode_user "$name")
-        let i+=1
-        usernames+=($name)
+        (( i+=1 ))
+        usernames+=("$name")
         if [ "$GIT_DEFAULT_USER" == "$name" ]; then
           message="$message or blank for '$name'"
           name="$name * (current default)"
@@ -68,38 +68,38 @@ edit_config () {
       echo "No users to edit! Try adding a token with $me -u"
       exit
     elif [ "${#usernames[@]}" -eq 1 ]; then
-      num=0
+      num=1
     else
-      printf "$options\n"
-      read -p "$message) " num
+      echo -e "$options"
+      read -rp "$message) " num
       [ -z "$num" ] && num=$inuse
       if [ -z "$num" ]; then
         echo "No user selected - exiting."
         exit
       fi
-      let num-=1
-      username="${usernames[num]}"
     fi
+    (( num-=1 ))
+    username="${usernames[num]}"
   fi
 
   if [ -n "$2" ]; then
     action="$2"
   else
     printf "Actions:
-    [1] Edit ${username}'s token
-    [2] Set ${username} as default
-    [3] Remove ${username} (NOT RECOVERABLE)
+    [1] Edit %s's token
+    [2] Set %s as default
+    [3] Remove %s (NOT RECOVERABLE)
     (Pressing Enter with no selection will exit)
-  "
-    read -p "Select Action for $username: " action
+  " "$username" "$username" "$username"
+    read -rp "Select Action for $username: " action
   fi
   if [ -z "$action" ]; then
     echo "No action chosen"
-  elif [ $action == '1' ] ; then
+  elif [ "$action" == '1' ] ; then
     get_username "$username" > /dev/null
-  elif [ $action == '2' ] ; then
+  elif [ "$action" == '2' ] ; then
     update_or_add 'GIT_DEFAULT_USER' "$username"
-  elif [ $action == '3' ] ; then
+  elif [ "$action" == '3' ] ; then
     update_or_add "GIT_TOKEN_$username"
   else
     echo "Input not recognized"
@@ -114,14 +114,14 @@ edit_config () {
 # If the ~/dotfiles folder isn't present, it will assume the user is handling the global settings with git
 set_personal () {
   if [ -f "$HOME/.gitconfig" ]; then
-    read -p "Update global git user? (y/N)" global_git
+    read -rp "Update global git user? (y/N) " global_git
   else
     global_git="y"
   fi
   if [[ $global_git =~ ^[yY] ]] ; then
     echo "Setting up global git information"
-    read -p "Global git user name: " guser
-    read -p "Global git user email: " gemail
+    read -rp "Global git user name: " guser
+    read -rp "Global git user email: " gemail
 
     if ! [ -d "$HOME/dotfiles" ]; then
       git config --global user.name "$guser"
@@ -141,7 +141,7 @@ END
   fi
 }
 
-me="$(basename $0)"
+me="$(basename "$0")"
 usage="$me makes having multiple Git accounts more manageable via
 separate Personal Access Tokens, HTTPS repositories, hierarchical .gitconfigs,
 and your OS's keychain.
@@ -169,11 +169,11 @@ while getopts ':rgu:efb:hv' option; do
     v) echo "Version $version"
       exit
       ;;
-    e) [ -z "$ran_set" ] && do_edit='true'
+    e) do_edit='true'
       ;;
     f) do_fix="true"
       ;;
-    g) [ -z "$ran_set" ] && do_personal='true'
+    g) do_personal='true'
       ;;
     u) username="$OPTARG"
       ;;
@@ -188,6 +188,7 @@ done
 shift $((OPTIND -1))
 
 if [ -f "$config" ]; then
+  # shellcheck disable=SC1090
   source "$config"
 else
   ran_set="true"
@@ -218,7 +219,7 @@ if [ -z "$username" ]; then
     username="$GIT_DEFAULT_USER"
   fi
 fi
-username_e=$(encode_user $username)
+username_e=$(encode_user "$username")
 token_key="GIT_TOKEN_$username_e"
 token="${!token_key}"
 if [ -z "$token" ]; then
@@ -228,9 +229,24 @@ fi
 
 if [ -n "$do_fix" ] && [ -f ".git/config" ]; then
   echo "Updating .git/config to use $username"
-  sed -i.bak -E "s%https?://(.*@)?%https://$username:$token@%" .git/config
+  sed -i.bkp -Ee "s%https?://(.*@)?%https://$username:$token@%" .git/config && rm .git/config.bkp
 
-  if [ -z "$(grep '\[include\]' .git/config)" ]; then
+  if [ -f ".gitmodules" ]; then
+    echo "Updating .git/config to use $username in submodules"
+    while read -r line; do
+      if [[ $line =~ \"([^\"]+)\" ]]; then
+        submod="${BASH_REMATCH[1]}"
+      elif [[ "$line" == *"url ="* ]]; then
+        url=$(echo "$line" | sed -Ee "s%.*https://([^@]*@)?%https://$username:$token@%")
+        git config "submodule.${submod}.url" "$url"
+        pushd ".git/modules/${submod}" &> /dev/null || exit
+        git config "remote.origin.url" "$url"
+        popd &> /dev/null || exit
+      fi
+    done < .gitmodules
+  fi
+
+  if ! grep -q '\[include\]' .git/config; then
     parent_dir="$(pwd)"
     parent_dir="${parent_dir%/*}"
     parent_config="$parent_dir/.gitconfig"
@@ -239,6 +255,12 @@ if [ -n "$do_fix" ] && [ -f ".git/config" ]; then
       include="[include]
   path = $parent_config"
       echo "$include" >> .git/config
+      # Assume that if had to write the top-level, you need to write the sub projects
+      if [ -f ".gitmodules" ]; then
+        echo "Updating .git/config to have [include] for parent config in submodules"
+        find ./.git/modules -maxdepth 1 -type d ! -path ./.git/modules \
+          -exec sh -c 'echo "$1" >> "$0/config"' {} "$include" \;
+      fi
     else
       echo "No parent config found at $parent_config, skipping user config"
     fi
@@ -287,8 +309,7 @@ if [ -n "$recurse" ]; then
 fi
 
 echo "$message"
-$command
-if [ $? -eq 0 ]; then
+if $command; then
   parent_config="$(pwd)/.gitconfig"
 
   cd "$name" || exit
@@ -302,17 +323,15 @@ if [ $? -eq 0 ]; then
 
   if [ -n "$recurse" ]; then
     while read -r line; do
-      if [[ "$line" == "[submodule "* ]]; then
-        submod=$(echo "$line" | sed -e 's/.*"\(.*\)".*/\1/')
+      # Doesn't use --recurse-submodules because the URLs will need to PAT added
+      if [[ $line =~ \"([^\"]+)\" ]]; then
+        submod="${BASH_REMATCH[1]}"
       elif [[ "$line" == *"url ="* ]]; then
         url=$(echo "$line" | sed -Ee "s%.*https://([^@]*@)?%https://$username:$token@%")
-        git config submodule.${submod}.url $url
+        git config "submodule.${submod}.url" "$url"
       fi
     done < .gitmodules
     git submodule update --init --recursive
-    for D in $(find ./.git/modules -type d -maxdepth 1 ! -path ./.git/modules)
-    do
-      echo "$include" >> "$D/config"
-    done
+    find ./.git/modules -maxdepth 1 -type d ! -path ./.git/modules -exec sh -c 'echo "$1" >> "$0/config"' {} "$include" \;
   fi
 fi
