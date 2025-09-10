@@ -1,6 +1,6 @@
 #!/bin/bash
 config="$HOME/.config/git-clone/config"
-version="0.1.8"
+version="0.2.0"
 
 # usernames can have dots; sourced files cannot
 encode_user () {
@@ -14,15 +14,20 @@ decode_user () {
 update_or_add () {
   key="$1"
   value="$2"
-  if ! [ -f "$config" ]; then
-    folder="${config%/*}"
+  file="${3:-"$config"}"
+  if ! [ -f "$file" ]; then
+    folder="${file%/*}"
     mkdir -p "$folder"
   else
     # strip any existing value
-    sed -i.bkp -Ee "/^${key}=/d" "$config" && rm "${config}.bkp"
+    sed -i.bkp -Ee "/^${key}=/d" "$file" && rm "${file}.bkp"
   fi
   if [ -n "$value" ]; then
-    echo "$key=$value" >> "$config"
+    echo "$key=$value" >> "$file"
+  fi
+  if [ "GIT_DEFAULT_USER" == "$key" ]; then
+    fullKey="GIT_TOKEN_${value}"
+    set_gh_token "${!fullKey}"
   fi
 }
 
@@ -36,6 +41,9 @@ get_username () {
   active_user_e="$(encode_user "$username")"
   key="GIT_TOKEN_$active_user_e"
   update_or_add "$key" "$token"
+  if [ "$username" == "$GIT_DEFAULT_USER" ]; then
+    set_gh_token "$token"
+  fi
   # Set token for later in process
   eval "$key=$token"
 }
@@ -106,6 +114,11 @@ edit_config () {
   fi
 }
 
+set_gh_token () {
+  token_file=${GITHUB_TOKEN_FILE:-"$HOME/.doNotCommit.d/.doNotCommit.gitClone"}
+  update_or_add "GITHUB_TOKEN" "$1" "$token_file"
+}
+
 # Attempts to use the `dotfiles` folder concepts from Flare576/dotfiles. Where git is concerned:
 # - generic settings are stored in ~/dotfiles/.gitconfig
 # - personal details (name/email) are stored in ~/dotfiles/.gitconfig.personal
@@ -143,8 +156,8 @@ END
 
 me="$(basename "$0")"
 usage="$me makes having multiple Git accounts more manageable via
-separate Personal Access Tokens, HTTPS repositories, hierarchical .gitconfigs,
-and your OS's keychain.
+separate Personal Access Tokens, HTTPS repositories, managing GITHUB_TOKEN,
+and hierarchical .gitconfigs.
 
 -e[dit]       Update default and tokens
 -f[ix]        While in a working directory, update origin url to use default/given user and fix [include]
@@ -152,6 +165,9 @@ and your OS's keychain.
 -u[sername]   The git username to use
 -b[ranch]     Checks out a specific branch of the project before continuing
 -r[ecurse]    Recursively checkout (for projects with submodules)
+-t[oken]      Set the file to use to manage GITHUB_TOKEN
+              - default to ~/.doNotCommit.d/.doNotCommit.gitClone
+              - set to /dev/null to disable
 -v[ersion]    Print $me version and exit
 
 Examples
@@ -161,7 +177,7 @@ clone flare576/git-clone # Assumes 'hub' style username/project
 clone my-project # Uses default username
 clone -u otheraccount https://other.com/project # supports multiple usernames"
 
-while getopts ':rgu:efb:hv' option; do
+while getopts ':rgu:efb:t:hv' option; do
   case "$option" in
     h) echo "$usage"
       exit
@@ -177,6 +193,8 @@ while getopts ':rgu:efb:hv' option; do
       ;;
     u) username="$OPTARG"
       ;;
+    t) new_token_file="$OPTARG"
+      ;;
     b) branch="$OPTARG"
       ;;
     r) recurse="deep"
@@ -186,6 +204,16 @@ while getopts ':rgu:efb:hv' option; do
   esac
 done
 shift $((OPTIND -1))
+
+if [ -n "$new_token_file" ]; then
+  set_gh_token # remove current token
+  update_or_add "GITHUB_TOKEN_FILE" "$new_token_file"
+  eval "GITHUB_TOKEN_FILE=\"$new_token_file\""
+  if [ -n "$GIT_DEFAULT_USER" ]; then
+    fullKey="GIT_TOKEN_${$GIT_DEFAULT_USER}"
+    set_gh_token "${!fullKey}"
+  fi
+fi
 
 if [ -f "$config" ]; then
   # shellcheck disable=SC1090
