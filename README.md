@@ -1,7 +1,7 @@
 # git-clone
 
 Makes having multiple Git accounts more manageable via separate Personal Access Tokens, HTTPS
-repositories, hierarchical .gitconfigs, and your OS's keychain.
+repositories, hierarchical .gitconfigs, and GITHUB_TOKEN.
 
 ## Installation
 
@@ -18,6 +18,7 @@ alias clone=git-clone
 to my .profile (or `.zshrc` or `.bashrc` or...)
 
 ## Normal Use
+
 Once setup, you can call `git-clone` with Github shortnames like
 [hub](https://github.com/github/hub) or any other git project with full HTTPS URL:
 
@@ -32,13 +33,16 @@ Once setup, you can call `git-clone` with Github shortnames like
 - Use the saved token (or run Setup) for that user
 - Clone project (optionally clones specific -b[ranch] and/or -r[ecursively] - see options)
 - Updates project's .git/config to have 'include.path=../../.gitconfig'." (see [Project-specific .gitconfig files](#project-specific-gitconfig-files)) if the project's parent directory has a .gitconfig file
+
 ## Setup
+
 Anytime you call `git-clone` with a new username it will:
   - Prompt for a Git Personal Access Token for the username. See
     - [GitHub](https://github.com/settings/tokens)
     - [GitLab](https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html)
     - [BitBucket](https://confluence.atlassian.com/bitbucketserver/personal-access-tokens-939515499.html)
   - If you already have another username saved, prompt for a 'default' username
+      * If not, it'll write your token to `-t[oken_file]` as `GITHUB_TOKEN`
   - Create/update `git-clone` config file
     - Located in ~/.config/git_clone/config
   - Offer to Create/update ~/.gitconfig.personal
