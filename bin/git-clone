@@ -1,6 +1,6 @@
 #!/bin/bash
 config="$HOME/.config/git-clone/config"
-version="0.2.0"
+version="0.2.1"
 
 # usernames can have dots; sourced files cannot
 encode_user () {
@@ -116,7 +116,7 @@ edit_config () {
 
 set_gh_token () {
   token_file=${GITHUB_TOKEN_FILE:-"$HOME/.doNotCommit.d/.doNotCommit.gitClone"}
-  update_or_add "GITHUB_TOKEN" "$1" "$token_file"
+  update_or_add "export GITHUB_TOKEN" "$1" "$token_file"
 }
 
 # Attempts to use the `dotfiles` folder concepts from Flare576/dotfiles. Where git is concerned:
